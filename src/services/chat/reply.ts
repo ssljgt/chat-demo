@@ -201,16 +201,33 @@ const isUsableReply = (message: Message): message is AssistantMessage =>
   !message.blocks.some((block) => block.type === 'text' && block.isTemplate) &&
   getReplyText(message) !== ''
 
-/** 有文件时用内容块数组：先文件后文本，文件按 Files API 的 file_id 引用 */
-const toUserParam = ({ content, files }: UserMessage): MessageParam => {
+
+/** 有文件时用内容块数组；时间快照追加在用户文本末尾，不影响附件 */
+const toUserParam = (
+  { content, files }: UserMessage,
+  reminder?: string
+): MessageParam => {
   const blocks = toFileBlocks(files)
+
+  const reminderText = reminder
+    ? `[设备本地日期和时间信息]\n${reminder}`
+    : ''
+
+  const text = [content, reminderText]
+    .filter(Boolean)
+    .join('\n\n')
+
   return blocks.length === 0
-    ? { role: 'user', content }
+    ? { role: 'user', content: text }
     : {
         role: 'user',
-        content: [...blocks, ...(content ? [{ type: 'text' as const, text: content }] : [])],
+        content: [
+          ...blocks,
+          ...(text ? [{ type: 'text' as const, text }] : []),
+        ],
       }
 }
+
 
 /**
  * assistant 的内容块按历史与续写场景转换：
@@ -308,26 +325,24 @@ export const toRequestMessages = (
   latestReminder?: string
 ): MessageParam[] => {
   const messages: MessageParam[] = []
-  let previousReminder: string | undefined
-  const appendReminder = (reminder: string | undefined) => {
-    // 仅在当前分支首次出现或内容变化时插入快照；缺少快照的消息保持原有内容。
-    if (reminder && reminder !== previousReminder) {
-      messages.push({ role: 'latest_reminder', content: reminder })
-      previousReminder = reminder
-    }
-  }
+
   for (const [user, reply] of getContextRounds(history)) {
     // 历史提问没有文字、附件也都没有 serverId 时，提问为空，连同回答一起省略。
     if (!user.content && toFileBlocks(user.files).length === 0) {
       continue
     }
-    appendReminder(reply.latestReminder)
-    messages.push(toUserParam(user), toAssistantParam(reply))
+
+    messages.push(
+      toUserParam(user, reply.latestReminder),
+      toAssistantParam(reply)
+    )
   }
-  appendReminder(latestReminder)
-  messages.push(toUserParam(question))
+
+  messages.push(toUserParam(question, latestReminder))
+
   if (prefix?.prefix) {
     const assistant = toAssistantParam(prefix, true, thinking)
+
     // 没有非空白正文或有效思考时直接重发原问题，避免服务端拒绝空 Prefill。
     if (
       assistant.content.some(
@@ -339,9 +354,9 @@ export const toRequestMessages = (
       messages.push(assistant)
     }
   }
+
   return messages
 }
-
 /** 思考用时（秒），至少 1 秒 */
 export const getThinkingSeconds = (startedAt: number, endedAt: number) =>
   Math.max(1, Math.round((endedAt - startedAt) / 1000))
