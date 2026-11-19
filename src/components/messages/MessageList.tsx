@@ -33,6 +33,51 @@ import styles from './MessageList.module.css'
 const STICKY_THRESHOLD = 40
 const EMPTY_VERSIONS: MessageVersions = { ids: [], index: -1 }
 
+const FIVE_MINUTES = 5 * 60 * 1000
+
+// 取得本地日期对应的天数，用于判断是否跨天
+const getLocalDayNumber = (timestamp: number) => {
+  const date = new Date(timestamp)
+  return (
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) /
+    86400000
+  )
+}
+
+// 根据本地日期生成日期标签
+const formatDateLabel = (timestamp: number) => {
+  const today = getLocalDayNumber(Date.now())
+  const target = getLocalDayNumber(timestamp)
+  const difference = today - target
+
+  if (difference === 0) return '今天'
+  if (difference === 1) return '昨天'
+
+  const date = new Date(timestamp)
+
+  if (difference > 1 && difference < 7) {
+    return new Intl.DateTimeFormat('zh-CN', {
+      weekday: 'long',
+    }).format(date)
+  }
+
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: date.getFullYear() === new Date().getFullYear()
+      ? undefined
+      : 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(date)
+}
+
+// 格式化消息时间
+const formatTime = (timestamp: number) =>
+  new Intl.DateTimeFormat('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(timestamp))
+
 export const MessageList = ({
   session,
   streaming,
@@ -146,32 +191,84 @@ export const MessageList = ({
       <div ref={isMobile ? undefined : scrollRef} className={styles.container}>
         <div ref={isMobile ? scrollRef : undefined} className={styles.scroll}>
           <div ref={contentRef} className={styles.column}>
-            {messages.map((message, index) =>
-              message.role === 'user' ? (
-                <UserMessage
-                  key={message.id}
-                  sessionId={session.id}
-                  message={message}
-                  retryUploadId={uploadRetryId}
-                  isFirst={index === 0}
-                  isLast={index === lastIndex || index === lastIndex - 1}
-                  busy={streaming}
-                  versions={versions.get(message.id) ?? EMPTY_VERSIONS}
-                  onSelectVersion={selectVersion}
-                />
-              ) : (
-                <AssistantMessage
-                  key={message.id}
-                  sessionId={session.id}
-                  message={message}
-                  isLast={index === lastIndex}
-                  streaming={streaming && index === lastIndex}
-                  busy={streaming}
-                  versions={versions.get(message.id) ?? EMPTY_VERSIONS}
-                  onSelectVersion={selectVersion}
-                />
+
+            {messages.map((message, index) => {
+              const previousMessage = messages[index - 1]
+              const currentTime = message.createdAt || Date.now()
+              const previousTime = previousMessage?.createdAt
+
+              const isNewDay =
+                !previousMessage ||
+                getLocalDayNumber(currentTime) !==
+                  getLocalDayNumber(previousTime)
+
+              const showTime =
+                !previousMessage ||
+                isNewDay ||
+                currentTime - previousTime >= FIVE_MINUTES
+
+              return (
+                <div key={message.id} style={{ display: 'contents' }}>
+                  {isNewDay && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        margin: '18px 0 10px',
+                      }}
+                    >
+                      <span
+                        style={{
+                          padding: '4px 12px',
+                          borderRadius: '12px',
+                          background: 'var(--dsw-specific-bubble)',
+                          color: 'var(--dsw-alias-label-secondary)',
+                          fontSize: '12px',
+                        }}
+                      >
+                        {formatDateLabel(currentTime)}
+                      </span>
+                    </div>
+                  )}
+
+                  {showTime && (
+                    <div
+                      style={{
+                        textAlign: 'center',
+                        marginBottom: '6px',
+                        color: 'var(--dsw-alias-label-secondary)',
+                        fontSize: '12px',
+                      }}
+                    >
+                      {formatTime(currentTime)}
+                    </div>
+                  )}
+
+                  {message.role === 'user' ? (
+                    <UserMessage
+                      sessionId={session.id}
+                      message={message}
+                      retryUploadId={uploadRetryId}
+                      isFirst={index === 0}
+                      isLast={index === lastIndex || index === lastIndex - 1}
+                      busy={streaming}
+                      versions={versions.get(message.id) ?? EMPTY_VERSIONS}
+                      onSelectVersion={selectVersion}
+                    />
+                  ) : (
+                    <AssistantMessage
+                      sessionId={session.id}
+                      message={message}
+                      isLast={index === lastIndex}
+                      streaming={streaming && index === lastIndex}
+                      busy={streaming}
+                      versions={versions.get(message.id) ?? EMPTY_VERSIONS}
+                      onSelectVersion={selectVersion}
+                    />
+                  )}
+                </div>
               )
-            )}
+            })}
           </div>
         </div>
         {footer}
@@ -179,3 +276,4 @@ export const MessageList = ({
     </ScrollToBottomContext.Provider>
   )
 }
+
