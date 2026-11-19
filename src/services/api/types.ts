@@ -191,14 +191,25 @@ export type StopDetails = { type: 'refusal'; category: null; explanation: null }
 export type MessageUsage = {
   /** 未命中缓存的输入 Token */
   input_tokens: number
+  /** 缓存创建 Token；DeepSeek 当前接口可能始终为 0 */
   cache_creation_input_tokens: number
+  /** 命中上下文缓存的输入 Token */
   cache_read_input_tokens: number
-  /** message_start 中为 0，message_delta 中为全轮累计值 */
+  /** 输出 Token，包含思考 Token */
   output_tokens: number
-  /** 仅当 message_delta 中有对外输出的搜索结果块时出现 */
-  server_tool_use?: { web_search_requests: number; tool_search: number }
+  /** 输出 Token 明细 */
+  output_tokens_details?: {
+    thinking_tokens?: number
+    safety_tokens?: number
+  }
+  /** 服务等级 */
+  service_tier?: string
+  /** 服务端工具用量 */
+  server_tool_use?: {
+    web_search_requests: number
+    tool_search: number
+  }
 }
-
 /** content_block_start 携带的初始内容块；工具块已是完整内容 */
 export type OutputBlockStart = TextBlock | ThinkingBlock | ServerToolBlock | ToolUseBlock
 
