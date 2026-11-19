@@ -1,0 +1,16 @@
+{
+  "name": "Chat Demo",
+  "short_name": "Chat",
+  "start_url": "/chat-demo/",
+  "scope": "/chat-demo/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/chat-demo/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
