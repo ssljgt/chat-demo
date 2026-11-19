@@ -1,3 +1,4 @@
+
 import { useTranslate } from '../../i18n/index.js'
 import clsx from 'clsx'
 import { memo } from 'react'
@@ -47,6 +48,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   const view = useReplyView(message, streaming)
   const panelEntry = useSearchPanel((state) => state.entry)
   const notice = streaming ? null : describeReply(message)
+
   // 安全拒绝：已下发的思考与正文按协议丢弃，只显示模板答复。
   const refused = message.stopReason === 'refusal'
   const answer = refused ? null : view.answer
@@ -56,6 +58,19 @@ export const AssistantMessage = memo(function AssistantMessage({
   const copyText = responseText || notice?.text
   const waiting = streaming && view.steps.length === 0 && !view.answer && !message.thinking
   const summaryEntry = `${message.id}-summary`
+
+  // 统计本次请求的 Token 和缓存命中率。
+  const usage = message.usage
+  const totalInputTokens = usage
+    ? usage.input_tokens +
+      usage.cache_creation_input_tokens +
+      usage.cache_read_input_tokens
+    : 0
+  const cacheHitRate =
+    totalInputTokens > 0 && usage
+      ? (usage.cache_read_input_tokens / totalInputTokens) * 100
+      : null
+
   return (
     <div className={styles.message}>
       {refused ? null : (
@@ -138,6 +153,16 @@ export const AssistantMessage = memo(function AssistantMessage({
           </span>
         </div>
       ) : null}
+
+      {!streaming && !refused && usage && cacheHitRate !== null ? (
+        <div className={styles.usage}>
+          <span>输入 {totalInputTokens.toLocaleString()} Token</span>
+          <span>缓存命中 {usage.cache_read_input_tokens.toLocaleString()} Token</span>
+          <span>输出 {usage.output_tokens.toLocaleString()} Token</span>
+          <span>命中率 {cacheHitRate.toFixed(1)}%</span>
+        </div>
+      ) : null}
+
       {streaming ? null : (
         <div className={styles.bottom}>
           <BranchSwitcher versions={versions} disabled={busy} onSelect={onSelectVersion} />
