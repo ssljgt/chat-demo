@@ -996,51 +996,14 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
           initial.thinking ?? false,
           latestReminder
         )
-        const now = new Date()
-
-const timeZone =
-  Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown'
-
-const deviceLocalDateTime = new Intl.DateTimeFormat('zh-CN', {
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  weekday: 'long',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hour12: false,
-}).format(now)
-
-const offsetMinutes = -now.getTimezoneOffset()
-const offsetSign = offsetMinutes >= 0 ? '+' : '-'
-const offsetHours = String(Math.floor(Math.abs(offsetMinutes) / 60)).padStart(2, '0')
-const offsetRemainder = String(Math.abs(offsetMinutes) % 60).padStart(2, '0')
-const utcOffset = `UTC${offsetSign}${offsetHours}:${offsetRemainder}`
+        
 
 const events = streamMessage(
   useSettings.getState().apiKey ?? '',
   {
     model: initial.model ?? MODEL,
 
-    system: `${SYSTEM_PROMPT}
-
-本轮设备本地日期和时间（由客户端提供）：
-${deviceLocalDateTime}
-
-设备时区：
-${timeZone}（${utcOffset}）
-
-其他时间信息：
-${latestReminder ?? '未提供'}
-
-请注意：
-1. 上述日期、时间和时区由客户端读取设备时钟后提供。
-2. 用户询问现在几点、今天几号、明天是几号、昨天、半小时前或几小时后等问题时，必须以本轮提供的设备时间为基准计算。
-3. 计算相对时间时，必须考虑设备时区和跨日情况。
-4. 不要声称无法读取设备时间，因为客户端已经提供了时间。
-5. 如果用户询问其他地区的时间，应根据对应时区进行换算。
-6. 不要根据时区擅自推断用户的具体地理位置。`,
+    system: SYSTEM_PROMPT,
 
     messages,
     thinking: { type: initial.thinking ? 'enabled' : 'disabled' },
