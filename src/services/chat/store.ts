@@ -1000,7 +1000,19 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
           useSettings.getState().apiKey ?? '',
           {
             model: initial.model ?? MODEL,
-            system: SYSTEM_PROMPT,
+            
+system: `${SYSTEM_PROMPT}
+
+本轮设备本地时间信息（由客户端提供）：
+${latestReminder ?? '未提供'}
+
+请注意：
+1. 上述日期、时间和时区是客户端在本轮请求中提供的信息。
+2. 你虽然不能直接读取用户的设备时钟或定位，但可以使用上述明确提供的时间信息。
+3. 用户询问现在几点、今天几号、明天是几号、半小时前是什么时候等问题时，应优先根据上述时间和时区计算并直接回答。
+4. 不要因为无法直接访问设备，就声称自己不知道客户端已经提供的时间。
+5. 如果时间信息确实未提供，再如实说明无法确认。`,
+
             messages,
             thinking: { type: initial.thinking ? 'enabled' : 'disabled' },
             safety_check: SAFETY_CHECK,
