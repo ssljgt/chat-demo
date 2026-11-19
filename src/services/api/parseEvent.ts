@@ -1,6 +1,8 @@
+
 import type {
   ContentBlockDelta,
   MessageStreamEvent,
+  MessageUsage,
   OutputBlockStart,
   TextCitation,
 } from './types.js'
@@ -165,11 +167,22 @@ const readDelta = (value: unknown): ContentBlockDelta | null => {
   }
 }
 
-const isUsage = (value: unknown) =>
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value)
+
+/** 校验基础用量，并兼容可选的输出明细和服务等级字段。 */
+const isUsage = (value: unknown): value is MessageUsage =>
   isRecord(value) &&
   ['input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens', 'output_tokens'].every(
-    (key) => typeof value[key] === 'number' && Number.isFinite(value[key])
-  )
+    (key) => isFiniteNumber(value[key])
+  ) &&
+  (value.output_tokens_details === undefined ||
+    (isRecord(value.output_tokens_details) &&
+      (value.output_tokens_details.thinking_tokens === undefined ||
+        isFiniteNumber(value.output_tokens_details.thinking_tokens)) &&
+      (value.output_tokens_details.safety_tokens === undefined ||
+        isFiniteNumber(value.output_tokens_details.safety_tokens)))) &&
+  (value.service_tier === undefined || isString(value.service_tier))
 
 /** 未识别或无法安全消费的事件静默丢弃，不影响后续有效内容与正常结束。 */
 export const readMessageEvent = (value: unknown): MessageStreamEvent | null => {
