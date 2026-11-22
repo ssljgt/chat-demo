@@ -31,6 +31,7 @@ import {
   type SessionSummary,
   type UserMessage,
 } from './types.js'
+import { syncSession } from '../supabase/sync.js'
 
 /** deepseek-flash 同时支持深度思考与图片输入 */
 const MODEL: ChatModel = 'deepseek-flash'
@@ -179,36 +180,50 @@ const updateReply = (sessionId: string, reply: AssistantMessage) =>
     ),
   }))
 
+
 const persist = (sessionId: string) => {
   const session = getSession(sessionId)
+
   if (session) {
     unsavedSessions.add(sessionId)
+
     if (deletingSessions.has(sessionId)) {
       return
     }
+
     const epoch = historyEpoch
     const files = pendingFiles.get(sessionId)
+
     void db
       .saveSession(session, files)
       .then(() => {
         if (epoch !== historyEpoch || !getSession(sessionId)) {
           return
         }
+
         if (pendingFiles.get(sessionId) === files) {
           pendingFiles.delete(sessionId)
         }
+
         if (getSession(sessionId) === session) {
           unsavedSessions.delete(sessionId)
+
           set((state) => ({
             sessionSaveErrors: Object.fromEntries(
               Object.entries(state.sessionSaveErrors).filter(([id]) => id !== sessionId)
             ),
           }))
+
           trimSessionCache()
+
+          void syncSession(session).catch((error: unknown) => {
+            console.error('Cloud sync failed:', error)
+          })
         }
       })
       .catch((error: unknown) => {
         db.reportStorageError('save session')(error)
+
         if (epoch === historyEpoch && getSession(sessionId)) {
           set((state) => ({
             sessionSaveErrors: { ...state.sessionSaveErrors, [sessionId]: true },
