@@ -13,3 +13,8 @@ declare module 'prismjs/components/*' {}
 
 /** KaTeX 化学公式扩展通过副作用注册到 KaTeX */
 declare module 'katex/contrib/mhchem' {}
+/** Supabase 项目地址 */
+declare const __SUPABASE_URL__: string
+
+/** Supabase Publishable/anon key */
+declare const __SUPABASE_ANON_KEY__: string

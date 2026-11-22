@@ -80,7 +80,11 @@ export const createConfig = ({
       scriptLoading: 'defer',
       meta: { 'application-version': version },
     }),
-    new rspack.DefinePlugin({ __API_ORIGIN__: JSON.stringify(apiOrigin) }),
+   new rspack.DefinePlugin({
+  __API_ORIGIN__: JSON.stringify(apiOrigin),
+  __SUPABASE_URL__: JSON.stringify(process.env.SUPABASE_URL ?? ''),
+  __SUPABASE_ANON_KEY__: JSON.stringify(process.env.SUPABASE_ANON_KEY ?? ''),
+}),
     new rspack.CopyRspackPlugin({
       patterns: [
         { from: path.resolve(root, 'LICENSE'), to: 'LICENSE', toType: 'file' },
