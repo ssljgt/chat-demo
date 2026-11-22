@@ -78,8 +78,12 @@ export const applyEvent = (
   const next: AssistantMessage =
     reply.status === 'streaming' ? reply : { ...reply, status: 'streaming' }
   switch (event.type) {
-    case 'message_start':
-      return { ...next, usage: event.message.usage ?? next.usage }
+case 'message_start':
+  return {
+    ...next,
+    serverMessageId: event.message.id ?? next.serverMessageId,
+    usage: event.message.usage ?? next.usage,
+  }
     case 'content_block_start': {
       blockIndexes.delete(event.index)
       const block = toReplyBlock(event.content_block, now)
