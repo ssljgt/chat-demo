@@ -1,3 +1,4 @@
+
 import clsx from 'clsx'
 import { useRef, useState, type ReactNode } from 'react'
 import {
@@ -36,10 +37,70 @@ import { ApiKeyConfirm, ApiKeyField, useApiKeyEditor } from './ApiKeyField.js'
 import { closeSettings, useSettingsDialog, type SettingsSection } from './settingsDialogState.js'
 import styles from './Settings.module.css'
 
+/** 云端账户：邮箱验证码登录 */
+const CloudAccountSetting = () => {
+  const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+
+  const sendLoginLink = async () => {
+    const value = email.trim()
+
+    if (!value) {
+      setMessage('请输入邮箱地址')
+      return
+    }
+
+    setLoading(true)
+    setMessage('')
+
+    try {
+      const { signInWithEmail } = await import('../../services/supabase/auth.js')
+      await signInWithEmail(value)
+      setMessage('登录链接已发送，请检查邮箱')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '发送失败，请重试')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className={styles.cell}>
+      <div className={styles.label}>云端账户</div>
+      <div className={styles.apiKeyInput}>
+        <input
+          type="email"
+          placeholder="输入邮箱地址"
+          autoComplete="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              void sendLoginLink()
+            }
+          }}
+        />
+        <span className={styles.divider} />
+        <button
+          type="button"
+          className={styles.confirm}
+          disabled={loading}
+          onClick={() => void sendLoginLink()}
+        >
+          {loading ? '发送中…' : '发送登录链接'}
+        </button>
+      </div>
+      {message ? <div className={styles.description}>{message}</div> : null}
+    </div>
+  )
+}
+
 /**
  * 设置弹窗：分「通用设置」（主题、语言、朗读音色、位置）与「数据管理」（API Key、导入、导出、删除）。
  * 桌面端为居中弹窗、左侧导航；移动端为底部弹层、导航横排在内容上方
  */
+
 export const SettingsDialog = () => {
   const open = useSettingsDialog((state) => state.open)
   return open ? <SettingsContent /> : null
@@ -103,6 +164,7 @@ const SettingsContent = () => {
             </>
           ) : (
             <>
+              <CloudAccountSetting />
               <ApiKeyField editor={apiKeyEditor} />
               <ImportHistory historyImport={historyImport} disabled={historyBusy} />
               <ExportHistory disabled={historyBusy} />
