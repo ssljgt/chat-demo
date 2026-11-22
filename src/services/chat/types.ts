@@ -76,6 +76,8 @@ export type AssistantMessage = MessageBranch & {
   role: 'assistant'
   createdAt: number
   /** 未记录模型时为 null，续写使用当前默认模型。 */
+  /** DeepSeek 服务端返回的原始消息 ID */
+  serverMessageId?: string
   model: ChatModel | null
   /** 请求时是否开启深度思考 */
   thinking?: boolean
