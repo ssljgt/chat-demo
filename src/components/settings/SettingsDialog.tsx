@@ -1,6 +1,6 @@
 
 import clsx from 'clsx'
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   IconDarkOutline16,
   IconDataOutline16,
@@ -42,7 +42,40 @@ const CloudAccountSetting = () => {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [currentEmail, setCurrentEmail] = useState<string | null>(null)
+  const [checking, setChecking] = useState(true)
 
+  useEffect(() => {
+    let active = true
+    let unsubscribe: (() => void) | undefined
+
+    const setupAuthListener = async () => {
+      try {
+        const { onAuthStateChange } = await import('../../services/supabase/auth.js')
+
+        if (!active) return
+
+        unsubscribe = onAuthStateChange((_event, session) => {
+          if (active) {
+            setCurrentEmail(session?.user?.email ?? null)
+            setChecking(false)
+          }
+        })
+      } catch {
+        if (active) {
+          setCurrentEmail(null)
+          setChecking(false)
+        }
+      }
+    }
+
+    void setupAuthListener()
+
+    return () => {
+      active = false
+      unsubscribe?.()
+    }
+  }, [])
   const sendLoginLink = async () => {
     const value = email.trim()
 
@@ -64,33 +97,65 @@ const CloudAccountSetting = () => {
       setLoading(false)
     }
   }
+  const handleSignOut = async () => {
+    setLoading(true)
+    setMessage('')
 
+    try {
+      const { signOut } = await import('../../services/supabase/auth.js')
+      await signOut()
+      setMessage('已退出登录')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '退出失败，请重试')
+    } finally {
+      setLoading(false)
+    }
+  }
   return (
     <div className={styles.cell}>
       <div className={styles.label}>云端账户</div>
-      <div className={styles.apiKeyInput}>
-        <input
-          type="email"
-          placeholder="输入邮箱地址"
-          autoComplete="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              void sendLoginLink()
-            }
-          }}
-        />
-        <span className={styles.divider} />
-        <button
-          type="button"
-          className={styles.confirm}
-          disabled={loading}
-          onClick={() => void sendLoginLink()}
-        >
-          {loading ? '发送中…' : '发送登录链接'}
-        </button>
-      </div>
+
+      {checking ? (
+        <div className={styles.description}>正在检查登录状态…</div>
+      ) : currentEmail ? (
+        <div className={styles.apiKeyInput}>
+          <span>{currentEmail}</span>
+          <span className={styles.divider} />
+          <button
+            type="button"
+            className={styles.confirm}
+            disabled={loading}
+            onClick={() => void handleSignOut()}
+          >
+            {loading ? '处理中…' : '退出登录'}
+          </button>
+        </div>
+      ) : (
+        <div className={styles.apiKeyInput}>
+          <input
+            type="email"
+            placeholder="输入邮箱地址"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                void sendLoginLink()
+              }
+            }}
+          />
+          <span className={styles.divider} />
+          <button
+            type="button"
+            className={styles.confirm}
+            disabled={loading}
+            onClick={() => void sendLoginLink()}
+          >
+            {loading ? '发送中…' : '发送登录链接'}
+          </button>
+        </div>
+      )}
+
       {message ? <div className={styles.description}>{message}</div> : null}
     </div>
   )
